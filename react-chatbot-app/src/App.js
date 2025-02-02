@@ -4,6 +4,7 @@ import "./App.css";
 function App() {
   const [message, setMessage] = useState("");
   const [chatHistory, setChatHistory] = useState([]);
+  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -18,6 +19,7 @@ function App() {
     try {
       const userMessage = { type: "user", content: message };
       setChatHistory((prev) => [...prev, userMessage]);
+      setIsAiSpeaking(true);
 
       const response = await fetch("http://localhost:5001/chat", {
         method: "POST",
@@ -36,8 +38,10 @@ function App() {
         setChatHistory((prev) => [...prev, ...aiResponses]);
       }
       setMessage("");
+      setIsAiSpeaking(false);
     } catch (error) {
       console.error("Error:", error);
+      setIsAiSpeaking(false);
     }
   };
 
@@ -46,6 +50,19 @@ function App() {
       <header className="App-header">
         <h1>AI Chatbot</h1>
         <div className="chat-container">
+          <div className="ai-avatar-container">
+            <div className={`ai-avatar ${isAiSpeaking ? "speaking" : ""}`}>
+              <div className="avatar-circle">
+                <div className="avatar-face">
+                  <div className="avatar-eyes">
+                    <div className="eye left"></div>
+                    <div className="eye right"></div>
+                  </div>
+                  <div className="avatar-mouth"></div>
+                </div>
+              </div>
+            </div>
+          </div>
           <div className="messages">
             {chatHistory.map((msg, index) => (
               <div
