@@ -1,12 +1,24 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import "./App.css";
 
 function App() {
   const [message, setMessage] = useState("");
-  const [responses, setResponses] = useState([]);
+  const [chatHistory, setChatHistory] = useState([]);
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView();
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatHistory]);
 
   const sendMessage = async () => {
     try {
+      const userMessage = { type: "user", content: message };
+      setChatHistory((prev) => [...prev, userMessage]);
+
       const response = await fetch("http://localhost:5001/chat", {
         method: "POST",
         headers: {
@@ -17,9 +29,13 @@ function App() {
 
       const data = await response.json();
       if (data.responses) {
-        setResponses((prev) => [...prev, ...data.responses]);
+        const aiResponses = data.responses.map((content) => ({
+          type: "ai",
+          content,
+        }));
+        setChatHistory((prev) => [...prev, ...aiResponses]);
       }
-      setMessage(""); // Clear input after sending
+      setMessage("");
     } catch (error) {
       console.error("Error:", error);
     }
@@ -31,20 +47,37 @@ function App() {
         <h1>AI Chatbot</h1>
         <div className="chat-container">
           <div className="messages">
-            {responses.map((response, index) => (
-              <p key={index} className="message">
-                {response}
-              </p>
+            {chatHistory.map((msg, index) => (
+              <div
+                key={index}
+                className={`message ${
+                  msg.type === "user" ? "user-message" : "ai-message"
+                }`}
+              >
+                <strong>{msg.type === "user" ? "You: " : "AI: "}</strong>
+                {msg.content}
+              </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
           <div className="input-container">
             <input
+              type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-              placeholder="Type your message..."
+              onKeyPress={(e) =>
+                e.key === "Enter" && message.trim() && sendMessage()
+              }
+              placeholder="Type your message here..."
+              className="input-field"
             />
-            <button onClick={sendMessage}>Send</button>
+            <button
+              onClick={sendMessage}
+              disabled={!message.trim()}
+              className="send-button"
+            >
+              Send
+            </button>
           </div>
         </div>
       </header>
