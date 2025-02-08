@@ -5,7 +5,30 @@ function App() {
   const [message, setMessage] = useState("");
   const [chatHistory, setChatHistory] = useState([]);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [token, setToken] = useState(null);
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    // Get token on component mount
+    loginUser();
+  }, []);
+
+  const loginUser = async () => {
+    try {
+      const response = await fetch("http://localhost:5001/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      if (data.token) {
+        setToken(data.token);
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView();
@@ -16,6 +39,11 @@ function App() {
   }, [chatHistory]);
 
   const sendMessage = async () => {
+    if (!token) {
+      console.error("No token available");
+      return;
+    }
+
     try {
       const userMessage = { type: "user", content: message };
       setChatHistory((prev) => [...prev, userMessage]);
@@ -25,6 +53,7 @@ function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ message }),
       });

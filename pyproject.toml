@@ -12,6 +12,7 @@ python-dotenv = "^1.0.1"
 cdp-langchain = "^0.0.13"
 flask = "^3.1.0"
 flask-cors = "^5.0.0"
+pyjwt = "^2.10.1"
 
 [build-system]
 requires = ["poetry-core"]
