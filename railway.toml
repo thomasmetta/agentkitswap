@@ -1,0 +1,9 @@
+[build]
+builder = "nixpacks"
+buildCommand = "poetry install"
+
+[deploy]
+startCommand = "poetry run python chatbot.py"
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "never"
