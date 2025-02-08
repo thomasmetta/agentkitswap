@@ -133,6 +133,103 @@ def supply_to_aave(wallet: Wallet, amount: float) -> str:
         print('ERROR SUPPLYING:', e)
         return f"Error supplying ETH to Aave: {str(e)}"
 
+WITHDRAWAL_FROM_AAVE_PROMPT = """
+This tool allows withdrawing ETH from the Aave V3 protocol through the WETH Gateway on Base sepolia network.
+The tool handles both mainnet and testnet environments automatically.
+Use this tool when you want to:
+- Withdraw ETH from Aave to your wallet
+- Withdraw collateral
+The tool will:
+1. Convert ETH to Wei for the transaction
+2. Supply the ETH through Aave's WETH Gateway
+3. Return the transaction status and hash
+"""
+
+
+class WithdrawalFromAaveInput(BaseModel):
+    """Input schema for withdrawing ETH from Aave."""
+
+    amount: float = Field(
+        ...,
+        description=
+        "Amount of ETH to withdraw in ETH units (e.g. 0.1 for 0.1 ETH)",
+        example=0.1,
+        gt=0  # Must be greater than 0
+    )
+
+
+def withdrawal_from_aave(wallet: Wallet, amount: float) -> str:
+    """
+    Withdraw ETH from Aave V3 protocol through the WETH Gateway.
+    This function only accepts ETH and will unwrap it to WETH before withdrawing.
+    Args:
+        wallet: The wallet instance to use for the transaction
+        amount (float): Amount of ETH to supply in ETH units (e.g. 0.1 for 0.1 ETH)
+    Returns:
+        str: Status message about the supply operation including the transaction hash if successful
+    """
+    try:
+        # Check if we're on mainnet or testnet
+        is_mainnet = wallet.network_id == "base-mainnet"
+        WETH_GATEWAY_ADDRESS = "0xd5DDE725b0A2dE43fBDb4E488A7fdA389210d461"
+        pool_address = AAVE_POOL_ADDRESS_MAINNET if is_mainnet else AAVE_POOL_ADDRESS_TESTNET
+
+        # Convert amount to Decimal for precise calculation
+        amount_decimal = Decimal(str(amount))
+
+        # Convert ETH to Wei for the transaction
+        WEI_PER_ETH = Decimal('1000000000000000000')  # 10^18
+        amount_wei = int(amount_decimal * WEI_PER_ETH)
+
+        print('Amount in ETH:', amount_decimal)
+        print('Amount in Wei:', amount_wei)
+        print('WETH Gateway:', WETH_GATEWAY_ADDRESS)
+        print('Pool address:', pool_address)
+        print('Wallet address:', wallet.default_address.address_id)
+
+        # Supply ETH through WETH Gateway
+        withdrawal_tx = wallet.invoke_contract(
+            contract_address=WETH_GATEWAY_ADDRESS,
+            method="withdrawETH",
+            args={
+                "lendingPool": pool_address,
+                "amount": str(int(amount_decimal)),
+                "to": wallet.default_address.address_id
+            },
+            amount=amount_decimal,
+            asset_id="eth",
+            abi=[{
+                "inputs": [{
+                    "internalType": "address",
+                    "name": "lendingPool",
+                    "type": "address"
+                }, 
+                {
+                    "internalType": "uint256",
+                    "name": "amount",
+                    "type": "uint256"
+                },
+                {
+                    "internalType": "address",
+                    "name": "to",
+                    "type": "address"
+                }],
+                "name":
+                "withdrawETH",
+                "outputs": [],
+                "stateMutability":
+                "nonpayable",
+                "type":
+                "function"
+            }])
+        withdrawal_tx.wait()
+
+        network = "mainnet" if is_mainnet else "testnet"
+        return f"Successfully withdrew {amount_decimal} ETH from Aave on Base {network} with tx: {withdrawal_tx}"
+    except Exception as e:
+        print('ERROR WITHDRAWING:', e)
+        return f"Error withdrawing ETH from Aave: {str(e)}"
+
 
 
 def initialize_agent():
@@ -172,9 +269,17 @@ def initialize_agent():
         func=supply_to_aave,
     )
 
+    withdrawalFromAaveTool = CdpTool(
+        name="withdrawal_from_aave",
+        description=WITHDRAWAL_FROM_AAVE_PROMPT,
+        cdp_agentkit_wrapper=agentkit,
+        args_schema=WithdrawalFromAaveInput,
+        func=withdrawal_from_aave,
+    )
+
     # Add to tools list
     tools.append(supplyToAaveTool)
-
+    tools.append(withdrawalFromAaveTool)
     # Store buffered conversation history in memory.
     memory = MemorySaver()
     config = {"configurable": {"thread_id": "CDP Agentkit Chatbot Example!"}}
