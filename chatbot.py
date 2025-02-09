@@ -71,7 +71,7 @@ def automate_profolio(wallet: Wallet, message: str) -> str:
         pool_address = AAVE_POOL_ADDRESS_MAINNET if is_mainnet else AAVE_POOL_ADDRESS_TESTNET
 
         # Check ETH balance
-        amount_decimal = wallet.balance("eth") * 0.9
+        amount_decimal = wallet.balance("eth") * Decimal('0.9')
 
         # Convert ETH to Wei for the transaction
         WEI_PER_ETH = Decimal('1000000000000000000')  # 10^18
